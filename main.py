@@ -52,7 +52,7 @@ class MySpotify:
         while running:
             # checks if token expires while the script is running
             if not await Login().verify_login():
-                start()
+                await start()
 
             # ad is being played, volume has to be muted
             if self.playing_advert() and self.get_volume() > 0.0:
