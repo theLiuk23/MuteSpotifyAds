@@ -4,6 +4,7 @@ from spotipy import Spotify
 from platform import system
 from requests import post
 import asyncio
+import traceback
 import os, sys
 
 
@@ -27,7 +28,7 @@ class MySpotify:
                 if key.name == "Spotify":
                     volume = self.pulse.volume_get_all_chans(key)
             if volume:
-                return round(volume[0], 2) # rounds float number by 2 digits after comma
+                return round(volume, 2) # rounds float number by 2 digits after comma
             return 1.0 # spotify desktop isn't opened
         
 
@@ -89,7 +90,7 @@ class Login:
 
     async def return_token(self) -> str:
         if not await self.verify_login():
-            self.refresh()
+            await self.refresh()
         return self.old_token
 
 
@@ -103,10 +104,10 @@ class Login:
         # if access_token is in the response, the new token will be returned
         if "access_token" in response.json():
             token = response.json()["access_token"]
-            print(f"Token refreshed: {token}")
+            print(f"Token refreshed")
             Settings().set_info_in_data("last_time_token_refreshed", datetime.now())
             Settings().set_info_in_secrets("old_token", token)
-            self.last_time = datetime.now()
+            self.last_time = str(datetime.now())
             self.old_token = token
 
         else:
@@ -182,7 +183,7 @@ if __name__ == "__main__":
         loop.stop()
     except Exception as error:
         loop.stop()
-        print(error.__str__())
+        print(traceback.format_exc())
         if not os.path.exists(log_path): sys.exit(1)
         with open(log_path, "a") as file:
             file.write(str(datetime.now()) + " - " + error.__str__() + "\n")
