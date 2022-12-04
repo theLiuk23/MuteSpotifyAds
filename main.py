@@ -1,15 +1,18 @@
 from configparser import RawConfigParser
+from multiprocessing import Process
 from datetime import datetime
+import webbrowser
 from spotipy import Spotify
 from platform import system
 from requests import post
-import asyncio
 import traceback
+import time
 import os, sys
+import wx, wx.adv
 
 
 # class containing most useful methods to control spotify's audio
-class MySpotify:
+class MySpotify():
     def __init__(self, token:str, operating_system:str):
         self.track:dict = None
         self.spotify = Spotify(auth=token)
@@ -27,10 +30,10 @@ class MySpotify:
             for key in self.pulse.sink_input_list():
                 if key.name == "Spotify":
                     volume = self.pulse.volume_get_all_chans(key)
-            if volume:
-                return round(volume, 2) # rounds float number by 2 digits after comma
-            return 1.0 # spotify desktop isn't opened
-        
+            if volume is None:
+                return 1.0 # spotify desktop isn't opened
+            return round(volume, 2) # rounds float number by 2 digits after comma
+
 
     def set_volume(self, volume:float):
         if self.operating_system == "Linux":
@@ -43,29 +46,30 @@ class MySpotify:
         self.track = self.spotify.current_user_playing_track()
         if self.track is None:
             return False
-        # print("\n".join([self.track["item"]["name"] for key in self.track["item"] if key == "name"]))
         return self.track["currently_playing_type"] == "ad"
 
 
-    async def main(self):
-        print("main in spotify")
+    def main(self):
         while running:
             # checks if token expires while the script is running
-            if not await Login().verify_login():
-                await start()
+            if not Login().verify_login():
+                start()
 
             # ad is being played, volume has to be muted
             if self.playing_advert() and self.get_volume() > 0.0:
                 # saves volume's value before muting it
                 self.old_volume = self.get_volume()
                 print(f"Muting audio:    {self.old_volume}")
+                IconApp().icon.set_icon(os.path.dirname(__file__) + "/mute.png")
                 self.set_volume(0.0)
             # ad stopped being played, volume has to be restored
-            elif not self.playing_advert() and self.get_volume() == 0.0:
+            elif not self.playing_advert() and self.get_volume() <= 0.0:
                 print(f"Restoring audio: {self.old_volume}")
                 self.set_volume(self.old_volume)
+                IconApp().icon.set_icon(os.path.dirname(__file__) + "/volume.png")
 
-            await asyncio.sleep(1)
+            time.sleep(1)
+        print("The end")
 
 
 
@@ -79,7 +83,7 @@ class Login:
     
         
     # it checks if the old token has expired (older than 1h)
-    async def verify_login(self) -> bool:
+    def verify_login(self) -> bool:
         t0 = datetime.strptime(self.last_time, self.time_format)
         t1 = datetime.now()
         # print(t0, t1, (t1-t0).total_seconds())
@@ -88,13 +92,13 @@ class Login:
         return True
 
 
-    async def return_token(self) -> str:
-        if not await self.verify_login():
-            await self.refresh()
+    def return_token(self) -> str:
+        if not self.verify_login():
+            self.refresh()
         return self.old_token
 
 
-    async def refresh(self):
+    def refresh(self):
         '''gets brand new token ready to use'''
         response = post(url = "https://accounts.spotify.com/api/token",
                         data = {"grant_type":"refresh_token",
@@ -145,47 +149,106 @@ class Settings:
             self.data_config.write(file)
 
 
+class TaskBarIcon(wx.adv.TaskBarIcon):
+    def __init__(self, frame:wx.Frame):
+        self.TRAY_TOOLTIP = 'Name' 
+        self.TRAY_ICON = os.path.dirname(__file__) + "/volume.png" 
+        self.frame = frame
+        super(TaskBarIcon, self).__init__()
+        self.set_icon(self.TRAY_ICON)
+        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
 
-### GLOBAL VARIABLES
-loop = asyncio.new_event_loop()
-operating_system = system() # is it running on Linux or Windows (platform library)
-log_path = os.path.expanduser("~/Documents") + "/log.txt" # path where log.txt is saved
-secrets_path = os.path.dirname(__file__) + "/secrets.ini"
-data_path = os.path.dirname(__file__) + "/data.ini"
-count_ads = 0 # total muted ads in a session
-running = True # boolean that will interrupt a while loop in spotify.py
+    def CreatePopupMenu(self):
+        menu = wx.Menu()
+        self.create_menu_item(menu, 'Site', self.on_hello)
+        menu.AppendSeparator()
+        self.create_menu_item(menu, 'Exit', self.on_exit)
+        return menu
+
+    def create_menu_item(self, menu, label, func):
+        item = wx.MenuItem(menu, -1, label)
+        menu.Bind(wx.EVT_MENU, func, id=item.GetId())
+        menu.Append(item)
+        return item
+
+    def on_left_down(self, event):
+        pass
+
+    def set_icon(self, path):
+        icon = wx.Icon(path)
+        self.SetIcon(icon, self.TRAY_TOOLTIP)
+
+    def on_hello(self, event):
+        webbrowser.open('https://www.github.com/theLiuk23/MuteSpotifyAds2')
+
+    def on_exit(self, event):
+        wx.CallAfter(self.Destroy)
+        self.DeletePendingEvents()
+        print("Boh")
+        self.frame.Close()
+        print("forse")
+        raise ChildProcessError
 
 
-# it checks if user's os is supported
-def verify_operating_system():
-    if operating_system not in ["Linux", "Windows"]:
-        print(f"{operating_system} is not supported.")
-        sys.exit(1)
+class IconApp(wx.App):
+    icon:TaskBarIcon = None
+
+    def OnInit(self):
+        frame=wx.Frame(None)
+        self.SetTopWindow(frame)
+        icon = TaskBarIcon(frame)
+        return True
 
 
-### Starting point
-async def start():
-    # checks if current running OS is supported
-    verify_operating_system()
-    # gets a valid token
-    token = await Login().return_token()
-    # starts spotify.py script
-    await MySpotify(token, operating_system).main()
+class StartIcon():
+    def __init__(self):
+        self.iconApp = IconApp()
+
+    def main(self):
+        self.iconApp.MainLoop()
+
+    def stop(self):
+        self.iconApp.ExitMainLoop()
+
+
 
 
 # It makes sure the script does not run when imported
 if __name__ == "__main__":
+    ### GLOBAL VARIABLES
+    operating_system = system() # is it running on Linux or Windows (platform library)
+    log_path = os.path.expanduser("~/Documents") + "/log.txt" # path where log.txt is saved
+    secrets_path = os.path.dirname(__file__) + "/secrets.ini"
+    data_path = os.path.dirname(__file__) + "/data.ini"
+    count_ads = 0 # total muted ads in a session
+    running = True # boolean that will interrupt a while loop in spotify.py
+    process = Process(target=StartIcon().main, daemon=False)
+
+
+    # it checks if user's OS is supported
+    def verify_operating_system():
+        if operating_system not in ["Linux", "Windows"]:
+            print(f"{operating_system} is not supported.")
+            sys.exit(1)
+
+
+    ### Starting point
+    def start():
+        # checks if current running OS is supported
+        verify_operating_system()
+        # gets a valid token
+        token = Login().return_token()
+        # running icon on a new thread
+        process.start()
+        # running mySpotify on main thread
+        MySpotify(token, operating_system).main()
+
+
     try:
-        loop.run_until_complete(start())
-    except asyncio.exceptions.TimeoutError:
-        loop.stop()
-    except KeyboardInterrupt:
-        loop.stop()
+        start()
+
     except Exception as error:
-        loop.stop()
         print(traceback.format_exc())
         if not os.path.exists(log_path): sys.exit(1)
         with open(log_path, "a") as file:
             file.write(str(datetime.now()) + " - " + error.__str__() + "\n")
-    finally:
-        loop.stop()
