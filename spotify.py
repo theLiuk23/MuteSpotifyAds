@@ -17,13 +17,31 @@ class MySpotify():
                 if key.name == "Spotify":
                     return round(self.pulse.volume_get_all_chans(key), 2)
             return 0.0
-
+        elif system() == "Windows":
+            from pycaw.pycaw import AudioUtilities, ISimpleAudioVolume
+            sessions = AudioUtilities.GetAllSessions()
+            for session in sessions:
+                master = session._ctl.QueryInterface(ISimpleAudioVolume)
+                if session.Process is None or session is None:
+                    continue
+                if session.Process and session.Process.name().lower() == "spotify.exe":
+                    return master.GetMasterVolume()
+            return -1.0
 
     def set_volume(self, volume:float):
         if system() == "Linux":
             for key in self.pulse.sink_input_list():
                 if key.name == "Spotify":
                     self.pulse.volume_set_all_chans(key, volume)
+        elif system() == "Windows":
+            from pycaw.pycaw import AudioUtilities, ISimpleAudioVolume
+            sessions = AudioUtilities.GetAllSessions()
+            for session in sessions:
+                master = session._ctl.QueryInterface(ISimpleAudioVolume)
+                if session.Process is None or session is None:
+                    continue
+                if session.Process and session.Process.name().lower() == "spotify.exe":
+                    master.SetMasterVolume(volume, None)
 
 
     def playing_advert(self) -> bool:

@@ -8,17 +8,17 @@ import time
 
 
 log_path = os.path.expanduser(__file__) + "/log.txt"
-old_volume = None
 
 
 def mute_ads():
+    old_volume = mySpotify.get_volume()
     while True:
         if mySpotify.playing_advert() and mySpotify.get_volume() > 0.0:
             print(f"Muting audio. Current: {mySpotify.get_volume()}")
             old_volume = mySpotify.get_volume()
             mySpotify.set_volume(0.0)
-        elif not mySpotify.playing_advert() and mySpotify.get_volume() <= 0.0:
-            if old_volume:
+        elif not mySpotify.playing_advert() and mySpotify.get_volume() == 0.0:
+            if old_volume is not None:
                 print(f"Restoring audio to {old_volume}")
                 mySpotify.set_volume(old_volume)
             else:
