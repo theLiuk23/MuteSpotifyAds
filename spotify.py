@@ -28,6 +28,7 @@ class MySpotify():
                     return master.GetMasterVolume()
             return -1.0
 
+
     def set_volume(self, volume:float):
         if system() == "Linux":
             for key in self.pulse.sink_input_list():
