@@ -10,6 +10,10 @@ class MySpotify():
             self.pulse = pulsectl.Pulse()
         self.spotify = Spotify(auth=token)
 
+    
+    def update_token(self, token:str):
+        self.spotify = Spotify(auth=token)
+
 
     def get_volume(self) -> float:
         if system() == "Linux":
@@ -18,6 +22,7 @@ class MySpotify():
                 if key.name == "Spotify":
                     return round(self.pulse.volume_get_all_chans(key), 2)
             return 0.0
+
         elif system() == "Windows":
             from pycaw.pycaw import AudioUtilities, ISimpleAudioVolume
             sessions = AudioUtilities.GetAllSessions()
@@ -35,6 +40,7 @@ class MySpotify():
             for key in self.pulse.sink_input_list():
                 if key.name == "Spotify":
                     self.pulse.volume_set_all_chans(key, volume)
+                    
         elif system() == "Windows":
             from pycaw.pycaw import AudioUtilities, ISimpleAudioVolume
             sessions = AudioUtilities.GetAllSessions()
