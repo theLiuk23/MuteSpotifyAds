@@ -19,14 +19,16 @@ def on_close(icon, item):
 
 
 log_path = os.path.dirname(__file__) + "/log.txt"
+ads_muted = Settings().get_info_from_data("ads_count")
 running = True
+
 
 icon = pystray.Icon(
     name='Spotify is playing some music',
     icon=Image.open(os.path.dirname(__file__) + "/volume.png"),
-    menu=pystray.Menu(pystray.MenuItem("Close", on_close))
+    menu=pystray.Menu(pystray.MenuItem("Close", on_close),
+                    pystray.MenuItem(f"Total ads muted: {ads_muted}", None))
 )
-
 
 def add_ads_count():
     # adds 1 to the ad count in data.ini
@@ -43,12 +45,17 @@ def mute_ads(icon):
         if not Login().verify_login():
             mySpotify.update_token(Login().return_token())
 
+        # MUTING AUDIO
         if mySpotify.playing_advert() and mySpotify.get_volume() > 0.0:
+            icon.icon = Image.open(os.path.dirname(__file__) + "/mute.png")
             print(f"Muting audio. Current: {old_volume}")
             old_volume = mySpotify.get_volume()
             mySpotify.set_volume(0.0)
             add_ads_count() # adds 1 to the ad count in data.ini
+
+        # RESTORING AUDIO
         elif not mySpotify.playing_advert() and mySpotify.get_volume() == 0.0:
+            icon.icon = Image.open(os.path.dirname(__file__) + "/volume.png")
             if old_volume is not None:
                 print(f"Restoring audio to {old_volume}")
                 mySpotify.set_volume(old_volume)
@@ -72,9 +79,9 @@ if __name__ == "__main__":
         print(f"Running on {datetime.now().date()} at {datetime.now().time()}")
         icon.run(mute_ads)
 
-    except KeyboardInterrupt:
-        ads_count = Settings().get_info_from_data("ads_count")
-        print(f"I have muted {ads_count} ads so far")
+    # except KeyboardInterrupt:
+    #     ads_count = Settings().get_info_from_data("ads_count")
+    #     print(f"I have muted {ads_count} ads so far")
 
     except TimeoutError:
         token = Login().return_token()
