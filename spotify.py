@@ -1,5 +1,6 @@
 from spotipy import Spotify
 from platform import system
+from requests import ReadTimeout
 
 
 class MySpotify():
@@ -46,7 +47,14 @@ class MySpotify():
 
 
     def playing_advert(self) -> bool:
-        track = self.spotify.current_user_playing_track()
+        try:
+            track = self.spotify.current_user_playing_track()
+        # connection lost: it took more than 5 secs to get data back
+        except ReadTimeout:
+            return False
+
+        # spotify isn't playing anything
         if track is None:
             return False
+
         return track["currently_playing_type"] == "ad"
