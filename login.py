@@ -17,7 +17,7 @@ class Login:
     def verify_login(self) -> bool:
         t0 = datetime.strptime(self.last_time, self.time_format)
         t1 = datetime.now()
-        if (t1 - t0).total_seconds() >= 3600:
+        if (t1 - t0).total_seconds() >= 60*60*0.95:
             return False
         return True
 
