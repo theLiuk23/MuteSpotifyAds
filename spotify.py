@@ -25,7 +25,7 @@ class MySpotify():
                 if session.Process is None or session is None:
                     continue
                 if session.Process and session.Process.name().lower() == "spotify.exe":
-                    return master.GetMasterVolume()
+                    return round(master.GetMasterVolume(), 2)
             return -1.0
 
 
