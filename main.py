@@ -4,13 +4,28 @@ from login import Login
 
 from platform import system
 from datetime import datetime
+from PIL import Image
 import traceback
+import pystray
 import os, sys
 import time
 
 
-log_path = os.path.expanduser(__file__) + "/log.txt"
+# icon closing
+def on_close(icon, item):
+    print("Closing...")
+    icon.stop()
+    sys.exit(0)
+
+
+log_path = os.path.dirname(__file__) + "/log.txt"
 running = True
+
+icon = pystray.Icon(
+    name='Spotify is playing some music',
+    icon=Image.open(os.path.dirname(__file__) + "/volume.png"),
+    menu=pystray.Menu(pystray.MenuItem("Close", on_close))
+)
 
 
 def add_ads_count():
@@ -19,7 +34,8 @@ def add_ads_count():
     Settings().set_info_in_data("ads_count", old_value + 1)
 
 
-def mute_ads():
+def mute_ads(icon):
+    icon.visible = True
     old_volume = mySpotify.get_volume()
 
     while running:
@@ -54,7 +70,7 @@ if __name__ == "__main__":
         mySpotify = MySpotify(token)
 
         print(f"Running on {datetime.now().date()} at {datetime.now().time()}")
-        mute_ads()
+        icon.run(mute_ads)
 
     except KeyboardInterrupt:
         ads_count = Settings().get_info_from_data("ads_count")
@@ -64,7 +80,8 @@ if __name__ == "__main__":
         token = Login().return_token()
         mySpotify.update_token(token)
         print(f"Running on {datetime.now().date()} at {datetime.now().time()}")
-        mute_ads()
+        icon.stop()
+        icon.run(mute_ads)
 
     except Exception as error:
         print(traceback.format_exc())
