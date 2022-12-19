@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from spotify import MySpotify
 from settings import Settings
 from login import Login
